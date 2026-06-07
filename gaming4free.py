@@ -30,7 +30,7 @@ SERVERNUM = os.getenv("NUM")  # 服务器编号
 URL_APP_PANEL = f"https://g4f.gg/{SERVERNUM}"
 # ===========================================
 
-class WeirdHostRenewal:
+class Game4FreeRenewal:
     def __init__(self):
         self.BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         self.screenshot_dir = os.path.join(self.BASE_DIR, "artifacts")
@@ -256,4 +256,4 @@ class WeirdHostRenewal:
 
 
 if __name__ == "__main__":
-    WeirdHostRenewal().run()
+    Game4FreeRenewal().run()
