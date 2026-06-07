@@ -236,9 +236,9 @@ class WeirdHostRenewal:
                 sb.save_screenshot(final_screenshot)
 
                 # 获取剩余运行时间
-                self.log("✅ 服务器面板中获取服务器剩余运行时间")
-                self.log(f"🕒 剩余运行时间: {remaining_text}")
                 timestamp = self.get_remaining_time(sb)
+                self.log("✅ 服务器面板中获取服务器剩余运行时间")
+                self.log(f"🕒 剩余运行时间: {timestamp}")
 
                 if final_screenshot:
                     # 发送 TG 通知
