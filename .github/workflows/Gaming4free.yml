@@ -45,7 +45,7 @@ jobs:
         PROXY: socks5://127.0.0.1:1080
         TG_TOKEN: ${{ secrets.TG_TOKEN }}      # 映射 Secret
         TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}  # 映射 Secret
-        NUM: ${{ secrets.NUM }}  # 映射 Secret
+        SERVERS: ${{ secrets.SERVERS }}  # 映射 Secret
       run: |
         # 使用 xvfb 运行以支持强力过人机验证模式
         xvfb-run -a python gaming4free.py
