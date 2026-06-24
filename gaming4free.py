@@ -141,6 +141,10 @@ class Game4FreeRenewal:
                     )
                     return
 
+                # 获取续期前剩余运行时间
+                timestamp_before = self.get_remaining_time(sb)
+                self.log(f"🕒 续期前剩余运行时间: {timestamp_before}")
+                
                 # 点击 '+ ADD 90 MIN'
                 try:
                     self.log("🖱️ 正在点击 '+ ADD 90 MIN'...")
@@ -196,12 +200,12 @@ class Game4FreeRenewal:
                 final_screenshot = f"{self.screenshot_dir}/final_success_{server_num}.png"
                 sb.save_screenshot(final_screenshot)
 
-                # 获取剩余运行时间
-                timestamp = self.get_remaining_time(sb)
-                self.log(f"🕒 剩余运行时间: {timestamp}")
+                # 获取续期后剩余运行时间
+                timestamp_after = self.get_remaining_time(sb)
+                self.log(f"🕒 续期后剩余运行时间: {timestamp_after}")
 
                 # TG通知
-                msg = f"✅ [{region}] 续期成功\n🖥️ 编号: {server_num}\n🕒 剩余运行时间: {timestamp}"
+                msg = f"✅ [{region}] 续期成功\n🖥️ 编号: {server_num}\n🕒 续期前剩余运行时间: {timestamp_before}\n🎉 续期后剩余运行时间: {timestamp_after}"
                 self.send_telegram_notify(msg, final_screenshot)
 
             except Exception as e:
