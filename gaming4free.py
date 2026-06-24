@@ -160,9 +160,9 @@ class Game4FreeRenewal:
                     return
 
                 # 保存点击后测试截图
-                test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
-                sb.save_screenshot(test_screenshot)
-                self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
+                #test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
+                #sb.save_screenshot(test_screenshot)
+                #self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
 
                 # 验证码处理
                 self.human_wait(6, 10)
