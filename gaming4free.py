@@ -5,7 +5,7 @@ import re
 import random
 import requests
 
-# ================= 环境 =================
+# 智能环境配置
 if "DISPLAY" not in os.environ:
     os.environ["DISPLAY"] = ":1"
 
@@ -13,105 +13,121 @@ if "XAUTHORITY" not in os.environ:
     if os.path.exists("/home/headless/.Xauthority"):
         os.environ["XAUTHORITY"] = "/home/headless/.Xauthority"
 
+print(f"[DEBUG] Env DISPLAY: {os.environ.get('DISPLAY')}")
+print(f"[DEBUG] Env XAUTHORITY: {os.environ.get('XAUTHORITY')}")
+
 from seleniumbase import SB
 
+# ================= CF 状态检测 =================
 
-# ================= CF 强化模块 V2 =================
-def stealth_browser_hardening(sb):
-    """
-    🔥 强化：降低 automation fingerprint
-    """
+def is_cf_blocked(sb):
+    try:
+        text = sb.get_text("body").lower()
+    except:
+        text = ""
+
+    if (
+        "just a moment" in text or
+        "verify you are human" in text or
+        "checking your browser" in text or
+        "challenge" in text
+    ):
+        return True
 
     try:
-        # 1. navigator spoof（关键）
-        sb.execute_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        """)
-
-        # 2. Chrome runtime spoof
-        sb.execute_script("""
-            window.chrome = {
-                runtime: {}
-            };
-        """)
-
-        # 3. plugins spoof
-        sb.execute_script("""
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5]
-            });
-        """)
-
-        # 4. languages spoof
-        sb.execute_script("""
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en']
-            });
-        """)
-
-        print("🧠 stealth patch applied")
-
-    except Exception as e:
-        print("stealth error:", e)
-
-
-def human_like_activity(sb):
-    """
-    🔥 模拟真实用户行为链（比 warmup 更强）
-    """
-
-    try:
-        for _ in range(3):
-            # scroll pattern
-            sb.execute_script(f"window.scrollTo(0, {random.randint(100, 1200)});")
-            time.sleep(random.uniform(1.2, 2.8))
-
-            # mouse move event
-            sb.execute_script("""
-                document.dispatchEvent(new MouseEvent('mousemove', {
-                    bubbles: true,
-                    clientX: Math.random() * window.innerWidth,
-                    clientY: Math.random() * window.innerHeight
-                }));
-            """)
-
-            time.sleep(random.uniform(0.8, 1.5))
-
+        if sb.is_element_present('iframe[src*="cloudflare"]'):
+            return True
+        if sb.is_element_present('iframe[src*="turnstile"]'):
+            return True
     except:
         pass
 
+    return False
 
-def cf_pre_touch(sb):
-    """
-    🔥 提前触发 CF 资源加载（重要）
-    """
 
-    try:
-        # 提前访问 CF 相关资源域
-        sb.open("https://www.cloudflare.com")
-        time.sleep(random.uniform(2, 4))
+def wait_cf_clear(sb, timeout=120):
+    start = time.time()
 
-        # 再回到空白页制造 session continuity
-        sb.open("about:blank")
-        time.sleep(1)
+    while time.time() - start < timeout:
+        if not is_cf_blocked(sb):
+            return True
 
-    except:
-        pass
+        print("🛡️ CF 阻塞中，等待解除...")
+        time.sleep(3)
 
+    return False
+
+
+# ================= 配置 =================
+PROXY_URL = os.getenv("PROXY", "")
+TG_TOKEN = os.getenv("TG_TOKEN")
+TG_CHAT_ID = os.getenv("TG_CHAT_ID")
+SERVERS = os.getenv("SERVERS", "").strip()
+
+SERVER_LIST = []
+if SERVERS:
+    for item in SERVERS.split("|"):
+        try:
+            num, region = item.split(",", 1)
+            SERVER_LIST.append({"num": num.strip(), "region": region.strip()})
+        except:
+            print(f"⚠️ SERVERS 配置错误: {item}")
 
 # ================= 主类 =================
+
 class Game4FreeRenewal:
 
-    def log(self, msg):
-        print(time.strftime("[%H:%M:%S]"), msg, flush=True)
+    def __init__(self):
+        self.BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        self.screenshot_dir = os.path.join(self.BASE_DIR, "artifacts")
+        os.makedirs(self.screenshot_dir, exist_ok=True)
 
+    def log(self, msg):
+        print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+    def get_remaining_time(self, sb):
+        try:
+            return sb.get_text('div.countdown-time').strip()
+        except:
+            return "未知"
+
+    # ================= 核心：成功判定 =================
+    def wait_success(self, sb, old_time, timeout=90):
+        start = time.time()
+
+        while time.time() - start < timeout:
+
+            # 1. CF 卡住直接退出
+            if is_cf_blocked(sb):
+                self.log("⚠️ CF 仍在阻塞，暂停判定")
+                time.sleep(3)
+                continue
+
+            # 2. 读取时间
+            try:
+                new_time = self.get_remaining_time(sb)
+            except:
+                new_time = "未知"
+
+            self.log(f"🧪 时间检测: {old_time} → {new_time}")
+
+            # 3. 成功条件（关键）
+            if new_time != old_time and new_time != "未知":
+                self.log("✅ 检测到时间变化（可能续期成功）")
+                return True, new_time
+
+            time.sleep(3)
+
+        return False, old_time
+
+    # ================= 运行逻辑 =================
     def run_single_server(self, server_num, region):
 
         url = f"https://g4f.gg/{server_num}"
 
-        self.log(f"🚀 start {region} {server_num}")
+        self.log("=" * 40)
+        self.log(f"🚀 开始 [{region}] {server_num}")
+        self.log("=" * 40)
 
         with SB(
             uc=True,
@@ -119,70 +135,57 @@ class Game4FreeRenewal:
             headed=True,
             headless=False,
             xvfb=False,
-            proxy=os.getenv("PROXY", None),
-            chromium_arg="--no-sandbox,--disable-dev-shm-usage,--disable-gpu"
+            chromium_arg="--no-sandbox,--disable-dev-shm-usage,--disable-gpu",
+            proxy=PROXY_URL if PROXY_URL else None
         ) as sb:
 
             try:
-                self.log("browser started")
-
-                # =================🔥 强化链开始 =================
-                self.log("stealth patch...")
-                stealth_browser_hardening(sb)
-
-                self.log("cf pre-touch...")
-                cf_pre_touch(sb)
-
-                self.log("human activity chain...")
-                human_like_activity(sb)
-                # =================================================
-
-                self.log("open target")
-                sb.open(url)
-                time.sleep(random.uniform(5, 9))
-
-                # 再次行为补偿（关键）
-                human_like_activity(sb)
+                self.log("启动浏览器...")
+                sb.uc_open_with_reconnect(url, reconnect_time=5)
+                time.sleep(5)
 
                 if "login" in sb.get_current_url():
-                    self.log("login failed")
+                    self.log("❌ 登录失效")
                     return
 
-                # 点击动作（保持你原逻辑）
-                self.log("click add 90 min")
+                # 初始时间
+                old_time = self.get_remaining_time(sb)
+                self.log(f"⏱️ 当前时间: {old_time}")
+
+                # 点击
+                self.log("🖱️ 点击 ADD 90 MIN")
                 sb.click("//button[contains(., 'ADD 90 MIN')]")
-                time.sleep(random.uniform(5, 8))
 
-                # ================= CF 软等待（不再硬 click） =================
-                self.log("cf passive wait...")
+                time.sleep(3)
 
-                for i in range(10):
-                    time.sleep(4)
+                # ================= CF 等待 =================
+                if is_cf_blocked(sb):
+                    self.log("🛡️ 进入 CF 状态，等待解除")
+                    wait_cf_clear(sb, 120)
 
-                    try:
-                        text = sb.get_text("body").lower()
-                    except:
-                        text = ""
+                # ================= 成功判定 =================
+                ok, new_time = self.wait_success(sb, old_time)
 
-                    if "just a moment" not in text and "checking your browser" not in text:
-                        break
+                screenshot = f"{self.screenshot_dir}/result_{server_num}.png"
+                sb.save_screenshot(screenshot)
 
-                    # 每轮增加“人类行为”
-                    human_like_activity(sb)
-
-                    self.log(f"cf wait {i+1}/10")
-
-                # ===========================================================
-
-                sb.save_screenshot(f"final_{server_num}.png")
-
-                self.log("done")
+                if ok:
+                    self.log(f"🎉 成功: {old_time} → {new_time}")
+                else:
+                    self.log("❌ 未检测到成功变化")
 
             except Exception as e:
-                self.log(f"error {e}")
-                sb.save_screenshot(f"error_{server_num}.png")
+                self.log(f"❌ 异常: {e}")
+                sb.save_screenshot(f"{self.screenshot_dir}/error_{server_num}.png")
+
+    def run(self):
+        if not SERVER_LIST:
+            self.log("❌ 没有服务器")
+            return
+
+        for s in SERVER_LIST:
+            self.run_single_server(s["num"], s["region"])
 
 
-# ================= 运行 =================
 if __name__ == "__main__":
-    Game4FreeRenewal().run_single_server("test", "demo")
+    Game4FreeRenewal().run()
