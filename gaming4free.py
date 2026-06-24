@@ -171,7 +171,7 @@ class Game4FreeRenewal:
                     for attempt in range(4):
                         text_all = sb.get_text("body").lower()
                         has_cf = ("verify you are human" in text_all or 
-                                  "challenges" in text_all or
+                                  "challenge" in text_all or
                                   sb.is_element_present('iframe[src*="cloudflare"]') or
                                   sb.is_element_present('iframe[src*="turnstile"]'))
                         has_err = "complete the captcha" in text_all
