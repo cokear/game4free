@@ -163,43 +163,11 @@ class Game4FreeRenewal:
                 test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
                 sb.save_screenshot(test_screenshot)
                 self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
-                
-                # 验证码处理循环
-                max_retry_rounds = 3
-                for round_idx in range(max_retry_rounds):
-                    self.log(f"🔄 执行第 {round_idx + 1}/{max_retry_rounds} 轮验证...")
-                    for attempt in range(4):
-                        if sb.is_text_visible("Connection lost"):
-                            try:
-                                sb.click("//button[contains(., '연장하기')]")
-                            except:
-                                sb.refresh()
-                            time.sleep(15)
-                            continue
 
-                        text_all = sb.get_text("body").lower()
-                        has_cf = ("verify you are human" in text_all or 
-                                  "challenges.cloudflare" in text_all or
-                                  sb.is_element_present('iframe[src*="cloudflare"]') or
-                                  sb.is_element_present('iframe[src*="turnstile"]'))
-                        has_err = "complete the captcha" in text_all
-
-                        sb.uc_gui_click_captcha()
-                        sb.uc_gui_handle_captcha()
-
-                        if has_cf or has_err:
-                            self.log(f"🛡️ 发现验证挑战 (尝试 {attempt+1})...")
-                            sb.save_screenshot(f"{self.screenshot_dir}/captcha_found_{server_num}.png")
-                            time.sleep(15)
-                            try:
-                                sb.uc_gui_click_captcha()
-                                sb.uc_gui_handle_captcha()
-                            except:
-                                sb.save_screenshot(f"{self.screenshot_dir}/click_fail_{server_num}.png")
-                            time.sleep(8)
-                            break
-                        else:
-                            break
+                # 验证码处理
+                time.sleep(5)
+                sb.uc_gui_click_captcha()
+                sb.uc_gui_handle_captcha()
 
                 # 保存最终截图
                 final_screenshot = f"{self.screenshot_dir}/final_success_{server_num}.png"
