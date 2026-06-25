@@ -1,6 +1,8 @@
 name: Gaming4free Auto Renew
 
 on:
+  repository_dispatch:
+    types: [game]
   workflow_dispatch:
 
 # ⚠️ 必须添加权限配置，允许 Action 修改仓库文件
