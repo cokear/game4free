@@ -40,7 +40,7 @@ jobs:
         chmod +x gost-linux-amd64-2.11.5
         nohup ./gost-linux-amd64-2.11.5 -L :1080 -F "${PROXY_URL}" > gost.log 2>&1 &
         sleep 5
-        curl -il -x socks5://127.0.0.1:1080 https://api.ipify.org
+        curl -s -o /dev/null -w "%{http_code}" -x socks5://127.0.0.1:1080 https://api.ipify.org
 
     - name: Run Script
       env:
