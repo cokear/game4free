@@ -61,15 +61,15 @@ class Game4FreeRenewal:
     def get_remaining_time(self, sb):
         remaining_text = "未知"
         try:
-            sb.wait_for_element_visible('div.countdown-time', timeout=15)
-            time.sleep(2)
-            remaining_text = sb.get_text('div.countdown-time').strip()
+            sb.wait_for_element_visible('#sd-timer', timeout=15)
+            time.sleep(1)
+            remaining_text = sb.get_text('#sd-timer').strip()
             self.log(f"✅ 获取剩余时间成功: {remaining_text}")
         except Exception as e:
             self.log(f"⚠️ 获取剩余时间失败: {e}")
             try:
                 remaining_text = sb.execute_script("""
-                    var el = document.querySelector('div.countdown-time');
+                    var el = document.querySelector('#sd-timer');
                     return el ? el.innerText.trim() : null;
                 """)
                 if remaining_text:
@@ -145,18 +145,18 @@ class Game4FreeRenewal:
                 timestamp_before = self.get_remaining_time(sb)
                 self.log(f"🕒 续期前剩余运行时间: {timestamp_before}")
                 
-                # 点击 '+ ADD 90 MIN'
+                # 点击 'VOTE + ADD 90 MIN'
                 try:
-                    self.log("🖱️ 正在点击 '+ ADD 90 MIN'...")
+                    self.log("🖱️ 正在点击 'VOTE + ADD 90 MIN'...")
                     self.move_mouse_human(sb)
-                    sb.wait_for_element('//button[contains(., "ADD 90 MIN")]', timeout=10)
-                    sb.click("//button[contains(., 'ADD 90 MIN')]")
+                    sb.wait_for_element('#sd-vote-btn', timeout=10)
+                    sb.click('#sd-vote-btn')
                     self.human_wait(6, 10)
                 except Exception as e:
-                    self.log(f"❌ 未找到 '+ ADD 90 MIN' 按钮: {e}")
+                    self.log(f"❌ 未找到 'VOTE + ADD 90 MIN' 按钮: {e}")
                     test2_screenshot = f"{self.screenshot_dir}/test2_{server_num}.png"
                     sb.save_screenshot(test2_screenshot)
-                    self.send_telegram_notify(f"未找到 '+ ADD 90 MIN' 按钮 [{region}]", test2_screenshot)
+                    self.send_telegram_notify(f"未找到 'VOTE + ADD 90 MIN' 按钮 [{region}]", test2_screenshot)
                     return
 
                 # 保存点击后测试截图
@@ -168,6 +168,13 @@ class Game4FreeRenewal:
                 self.human_wait(6, 10)
                 #sb.uc_gui_click_captcha()
                 sb.uc_gui_handle_captcha()
+                self.human_wait(6, 10)
+
+                # 再次点击 'VOTE + ADD 90 MIN'
+                self.log("🖱️ Cloudflare验证后再次点击 'VOTE + ADD 90 MIN'...")
+                self.move_mouse_human(sb)
+                sb.wait_for_element('#vm-submit', timeout=10)
+                sb.click('#vm-submit')
                 self.human_wait(6, 10)
 
                 # 保存最终截图
