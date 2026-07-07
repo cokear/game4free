@@ -173,11 +173,12 @@ class Game4FreeRenewal:
                             pass
 
                 self.human_wait(6, 10)
-                
+
                 # 获取续期前剩余运行时间
                 timestamp_before = self.get_remaining_time(sb)
                 self.log(f"🕒 续期前剩余运行时间: {timestamp_before}")
-                
+
+                sb.press_keys("body", "PAGEDOWN")
                 # 点击 'VOTE + ADD 90 MIN'
                 try:
                     self.log("🖱️ 正在点击 'VOTE + ADD 90 MIN'...")
@@ -193,9 +194,9 @@ class Game4FreeRenewal:
                     return
 
                 # 保存点击后测试截图
-                #test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
-                #sb.save_screenshot(test_screenshot)
-                #self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
+                test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
+                sb.save_screenshot(test_screenshot)
+                self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
 
                 # 过cloudflare人机
                 self.log("⏳ 开始验证Cloudflare")
@@ -203,7 +204,7 @@ class Game4FreeRenewal:
                 for attempt in range(1, 4):
                     try:
                         sb.uc_gui_click_captcha()
-                        time.sleep(5)
+                        time.sleep(8)
                     except Exception as e:
                         print(f"⚠️ 点击 Turnstile 出错: {e}")
                     if self.wait_for_turnstile_pass(sb, timeout=20):
