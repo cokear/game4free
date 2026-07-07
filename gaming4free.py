@@ -201,22 +201,23 @@ class Game4FreeRenewal:
 
                 # 过cloudflare人机
                 self.log("⏳ 开始验证Cloudflare")
-                turnstile_passed = False
-                for attempt in range(1, 4):
-                    try:
-                        sb.uc_gui_click_captcha()
-                        #sb.uc_gui_handle_captcha()
-                        time.sleep(10)
-                    except Exception as e:
-                        print(f"⚠️ 点击 Turnstile 出错: {e}")
-                    if self.wait_for_turnstile_pass(sb, timeout=20):
-                        turnstile_passed = True
+                cf_indicators = [
+                    "verify you are human",
+                    "确认您是真人",
+                    "troubleshoot",
+                    "just a moment"
+                ]
+                for i in range(10): # 尝试10次
+                    sb.uc_gui_click_captcha()
+                    time.sleep(3)
+                    page_lower = sb.get_page_source().lower()
+                    if any(x in page_lower for x in cf_indicators):
+                        sb.uc_gui_handle_captcha()
+                        time.sleep(3)
+                        page_lower = sb.get_page_source().lower()
+                    if not any(x in page_lower for x in cf_indicators):
+                        self.log("✅Cloudflare验证已通过")
                         break
-                    else:
-                        print(f"⏳ 第 {attempt} 次未通过，重试点击...")
-                if not turnstile_passed:
-                    print("❌ Turnstile 验证最终未通过，脚本退出")
-                    return
 
                 # 再次点击 'VOTE + ADD 90 MIN'
                 self.log("🖱️ Cloudflare验证后再次点击 'VOTE — ADDS 90 MINUTES'...")
