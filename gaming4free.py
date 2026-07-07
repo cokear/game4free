@@ -206,7 +206,7 @@ class Game4FreeRenewal:
                     try:
                         sb.uc_gui_click_captcha()
                         #sb.uc_gui_handle_captcha()
-                        time.sleep(8)
+                        time.sleep(10)
                     except Exception as e:
                         print(f"⚠️ 点击 Turnstile 出错: {e}")
                     if self.wait_for_turnstile_pass(sb, timeout=20):
@@ -233,6 +233,7 @@ class Game4FreeRenewal:
                     self.send_telegram_notify(f"未找到 'VOTE — ADDS 90 MINUTES' 按钮 [{region}]", test2_screenshot)
                     return
 
+                time.sleep(10)
                 # 保存最终截图
                 final_screenshot = f"{self.screenshot_dir}/final_success_{server_num}.png"
                 sb.save_screenshot(final_screenshot)
