@@ -164,7 +164,21 @@ def generate_config(proxy_url):
     elif scheme == "vmess":
         # vmess://base64(json_config)
         try:
-            v_info = json.loads(base64.b64decode(parsed.netloc + "==").decode())
+            raw = parsed.netloc + parsed.path  # 有些客户端会把内容放到 path 里
+            decoded = None
+            for padding in ["", "=", "=="]:
+                try:
+                    decoded = base64.b64decode(raw + padding).decode("utf-8")
+                    json.loads(decoded)  # 验证是合法 JSON
+                    break
+                except Exception:
+                    continue
+            if decoded is None:
+                try:
+                    decoded = base64.urlsafe_b64decode(raw + "==").decode("utf-8")
+                except Exception:
+                    raise ValueError(f"Cannot decode VMess base64, raw={raw[:60]}")
+            v_info = json.loads(decoded)
             outbound["type"] = "vmess"
             outbound["server"] = v_info.get("add")
             outbound["server_port"] = int(v_info.get("port", 443))
