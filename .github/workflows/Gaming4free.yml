@@ -48,7 +48,7 @@ jobs:
         sleep 5
         
         # 测试 8080 端口的代理连通性
-        curl -il -x socks5://127.0.0.1:8080 https://api.ipify.org
+        curl -s -f -x socks5://127.0.0.1:8080 https://api.ipify.org > /dev/null
 
     - name: Run Script
       env:
