@@ -57,19 +57,6 @@ class Game4FreeRenewal:
                 time.sleep(random.uniform(0.5, 1.2))
         except:
             pass
-
-    def wait_for_turnstile_pass(self, sb, timeout=30):
-        start = time.time()
-        cf_indicators = ["verify you are human", "确认您是真人", "troubleshoot", "just a moment"]
-        while time.time() - start < timeout:
-            page_lower = sb.get_page_source().lower()
-            if not any(x in page_lower for x in cf_indicators):
-                print("✅ Turnstile 验证已通过")
-                # sb.save_screenshot("turnstile_passed.png")
-                return True
-            sb.sleep(1)
-        print("❌ Turnstile 验证超时未通过")
-        return False
     
     def get_remaining_time(self, sb):
         remaining_text = "未知"
