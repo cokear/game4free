@@ -31,7 +31,7 @@ jobs:
 
     - name: Setup Proxy Tunnel (Sing-box)
       env:
-        PROXY_URL: ${{ secrets.PROXY }} 
+        PROXY_STR: ${{ secrets.PROXY }} 
       run: |
         # 下载并提取 sing-box (1.9.3 版本)
         wget -qO- https://github.com/SagerNet/sing-box/releases/download/v1.9.3/sing-box-1.9.3-linux-amd64.tar.gz | tar xz
