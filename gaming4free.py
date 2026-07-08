@@ -48,6 +48,53 @@ class Game4FreeRenewal:
     def human_wait(self, min_s=6, max_s=10):
         time.sleep(random.uniform(min_s, max_s))
 
+    # ================= 新增：终极指纹注入 =================
+    def _install_webgl_spoof(self, sb):
+        spoof_js = """
+        const getParameter = WebGLRenderingContext.prototype.getParameter;
+        const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+        
+        // 伪装显卡参数
+        const spoofedVendor = 'Google Inc. (NVIDIA)';
+        const spoofedRenderer = 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+
+        Object.defineProperty(WebGLRenderingContext.prototype, 'getParameter', {
+            configurable: true, enumerable: true, writable: true,
+            value: function (parameter) {
+                if (parameter === 37445) return spoofedVendor;
+                if (parameter === 37446) return spoofedRenderer;
+                return getParameter.apply(this, arguments);
+            }
+        });
+        
+        Object.defineProperty(WebGL2RenderingContext.prototype, 'getParameter', {
+            configurable: true, enumerable: true, writable: true,
+            value: function (parameter) {
+                if (parameter === 37445) return spoofedVendor;
+                if (parameter === 37446) return spoofedRenderer;
+                return getParameter2.apply(this, arguments);
+            }
+        });
+
+        // 强行覆盖 WebDriver 痕迹
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        
+        // 伪装硬件环境
+        Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 16});
+        Object.defineProperty(navigator, 'deviceMemory', {get: () => 16});
+        Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
+        Object.defineProperty(navigator, 'language', {get: () => 'zh-CN'});
+        
+        if (!window.chrome) { window.chrome = { runtime: {} }; }
+        """
+        try:
+            sb.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": spoof_js})
+            sb.execute_script(spoof_js)
+            self.log("🎭 终极指纹伪装脚本已成功注入")
+        except Exception as e:
+            self.log(f"⚠️ 指纹注入发生异常: {e}")
+    # ===================================================
+
     def move_mouse_human(self, sb):
         try:
             for _ in range(3):
@@ -65,7 +112,6 @@ class Game4FreeRenewal:
             page_lower = sb.get_page_source().lower()
             if not any(x in page_lower for x in cf_indicators):
                 print("✅ Turnstile 验证已通过")
-                # sb.save_screenshot("turnstile_passed.png")
                 return True
             sb.sleep(1)
         print("❌ Turnstile 验证超时未通过")
@@ -124,11 +170,15 @@ class Game4FreeRenewal:
             headed=True,
             headless=False,
             xvfb=False,
-            chromium_arg="--no-sandbox,--disable-dev-shm-usage,--disable-gpu,--window-position=0,0,--start-maximized",
+            # 注意：这里去掉了 --disable-gpu，并且为了过盾安全加上了更复杂的参数
+            chromium_arg="--no-sandbox,--disable-dev-shm-usage,--use-gl=angle,--use-angle=swiftshader,--enable-unsafe-swiftshader,--window-position=0,0,--start-maximized",
             proxy=PROXY_URL if PROXY_URL else None
         ) as sb:
             try:
                 self.log("✅ 浏览器已启动！")
+                
+                # 注入指纹！
+                self._install_webgl_spoof(sb)
 
                 # IP 检测
                 self.log("🌍 正在检测出口 IP...")
@@ -144,6 +194,9 @@ class Game4FreeRenewal:
                 self.log(f"📂 正在进入续期面板 [{region}] ...")
                 sb.uc_open_with_reconnect(URL_APP_PANEL, reconnect_time=5)
                 self.human_wait(6, 10)
+                
+                # 页面重连后再次注入，防止丢失
+                self._install_webgl_spoof(sb)
 
                 if "login" in sb.get_current_url().lower():
                     self.log(f"❌ 权限失效。当前 URL: {sb.get_current_url()}")
@@ -193,11 +246,6 @@ class Game4FreeRenewal:
                     sb.save_screenshot(test2_screenshot)
                     self.send_telegram_notify(f"未找到 'VOTE + ADD 90 MIN' 按钮 [{region}]", test2_screenshot)
                     return
-
-                # 保存点击后测试截图
-                #test_screenshot = f"{self.screenshot_dir}/test_{server_num}.png"
-                #sb.save_screenshot(test_screenshot)
-                #self.send_telegram_notify(f"服务器{server_num}测试截图", test_screenshot)
 
                 # 过cloudflare人机
                 self.log("⏳ 开始验证Cloudflare")
