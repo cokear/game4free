@@ -5,6 +5,7 @@ on:
     types: [game]
   workflow_dispatch:
 
+
 permissions:
   contents: write
 
@@ -21,12 +22,7 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install System Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb xdotool
-
-    - name: Install Python Dependencies
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install seleniumbase requests
@@ -35,21 +31,55 @@ jobs:
       run: |
         seleniumbase install chromedriver
 
-    - name: Setup Proxy Tunnel (Sing-box)
+    - name: Install System Dependencies
       env:
-        PROXY_STR: ${{ secrets.PROXY }}
+        DEBIAN_FRONTEND: noninteractive
       run: |
-        wget -qO- https://github.com/SagerNet/sing-box/releases/download/v1.9.3/sing-box-1.9.3-linux-amd64.tar.gz | tar xz
-        sudo mv sing-box-1.9.3-linux-amd64/sing-box /usr/local/bin/
+        sudo apt-get update
+        sudo apt-get -o Acquire::ForceIPv4=true install -y xvfb
+
+    - name: 安装并启动 sing-box (TUN 全局)
+      env:
+        PROXY_STR: ${{ secrets.PROXY_STR }}
+        PROXY_MODE: tun
+        SINGBOX_VERSION: "1.10.7"
+      run: |
+        set -e
+        echo "[INFO] 下载 sing-box ${SINGBOX_VERSION}..."
+        curl -sL -o sing-box.tar.gz \
+          "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz"
+        tar -xzf sing-box.tar.gz
+        sudo install -m 755 "sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box" /usr/local/bin/sing-box
+        sing-box version
+
+        echo "[INFO] 生成 config.json (PROXY_MODE=${PROXY_MODE})..."
         python convert_proxy.py
-        nohup sing-box run -c config.json > singbox.log 2>&1 &
-        sleep 5
-        curl -s -o /dev/null --connect-timeout 10 -x http://127.0.0.1:8080 https://api.ipify.org && echo "✅ Tunnel OK"
+        sing-box check -c config.json && echo "[INFO] config.json 校验通过"
+
+        echo "[INFO] 后台启动 sing-box..."
+        sudo sing-box run -c config.json > singbox.log 2>&1 &
+        echo $! | sudo tee /tmp/singbox.pid >/dev/null
+
+        echo "[INFO] 等待 TUN 接口就绪..."
+        for i in $(seq 1 20); do
+          if ip link show | grep -q tun; then
+            echo "[INFO] TUN 接口已就绪"; break
+          fi
+          sleep 1
+        done
+        sleep 3
+
+        echo "[INFO] sing-box 日志:"
+        cat singbox.log || true
+
+        echo "[INFO] 出口 IP（应为住宅 IP，不是 GitHub runner IP）:"
+        curl -s --max-time 15 https://api.ipify.org && echo || echo "[WARN] 出口 IP 获取失败"
+        echo "[INFO] 目标域名解析测试:"
+        curl -s --max-time 15 -o /dev/null -w "host2play HTTP:%{http_code}\n" https://host2play.gratis || echo "[WARN] 目标站点连接失败"
 
     - name: Run Script
       env:
-        PROXY: http://127.0.0.1:8080
-        PROXY_STR: http://127.0.0.1:8080 
+        
         TG_TOKEN: ${{ secrets.TG_TOKEN }}
         TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         SERVERS: ${{ secrets.SERVERS }}
