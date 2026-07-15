@@ -222,27 +222,74 @@ def generate_config(proxy_url):
         print(f"Unknown scheme: {scheme}, please use full JSON for complex configs.")
         sys.exit(1)
     # 组装完整配置
+    # PROXY_MODE=tun  -> 全局 TUN（sing-box 1.10 语法，整机流量透明代理）
+    # PROXY_MODE=mixed -> 本地 SOCKS/HTTP 代理（127.0.0.1:8080），需浏览器指定 --proxy-server
+    mode = os.environ.get("PROXY_MODE", "tun").strip().lower()
+
+    if mode == "mixed":
+        config = {
+            "log": {"level": "info"},
+            "inbounds": [
+                {
+                    "type": "mixed",
+                    "tag": "mixed-in",
+                    "listen": "127.0.0.1",
+                    "listen_port": 8080
+                }
+            ],
+            "outbounds": [
+                outbound,
+                {"type": "direct", "tag": "direct"}
+            ],
+            "route": {
+                "rules": [
+                    {"inbound": ["mixed-in"], "outbound": "proxy"}
+                ]
+            }
+        }
+        return json.dumps(config, indent=2)
+
+    # ---- TUN 全局模式（默认）----
+    # 关键点：
+    #  1. DNS 全走 direct（dns_direct，detour=direct）——代理域名与目标域名都用直连 DNS
+    #     解析成 IP，彻底避开"解析代理域名的请求被 TUN 抓回代理"的死循环。
+    #     DNS 走直连只暴露 runner IP 给 DNS 服务器，不影响 reCAPTCHA（它看连接源 IP）。
+    #  2. stack=gvisor——纯用户态，CI 环境不需要过多内核权限，比 system 稳。
+    #  3. auto_route + strict_route 接管整机流量；sing-box 自身去代理节点的连接由
+    #     auto_route 自动排除（不会被 TUN 抓回），无需手动加节点 IP 的 direct 规则。
+    #  4. ip_is_private -> direct，避免内网/回环流量被代理。
     config = {
         "log": {"level": "info"},
+        "dns": {
+            "servers": [
+                {"tag": "dns_direct", "address": "1.1.1.1", "detour": "direct"}
+            ],
+            "final": "dns_direct",
+            "strategy": "ipv4_only"
+        },
         "inbounds": [
             {
-                "type": "mixed",
-                "tag": "mixed-in",
-                "listen": "127.0.0.1",
-                "listen_port": 8080
+                "type": "tun",
+                "tag": "tun-in",
+                "inet4_address": "172.19.0.1/30",
+                "auto_route": True,
+                "strict_route": True,
+                "stack": "gvisor",
+                "sniff": True
             }
         ],
         "outbounds": [
             outbound,
-            {"type": "direct", "tag": "direct"}
+            {"type": "direct", "tag": "direct"},
+            {"type": "dns", "tag": "dns-out"}
         ],
         "route": {
             "rules": [
-                {
-                    "inbound": ["mixed-in"],
-                    "outbound": "proxy"
-                }
-            ]
+                {"protocol": "dns", "outbound": "dns-out"},
+                {"ip_is_private": True, "outbound": "direct"}
+            ],
+            "auto_detect_interface": True,
+            "final": "proxy"
         }
     }
     return json.dumps(config, indent=2)
