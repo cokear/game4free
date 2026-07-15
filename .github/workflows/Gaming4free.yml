@@ -73,7 +73,7 @@ jobs:
         cat singbox.log || true
 
         echo "[INFO] 出口 IP（应为住宅 IP，不是 GitHub runner IP）:"
-        curl -s --max-time 15 https://api.ipify.org && echo || echo "[WARN] 出口 IP 获取失败"
+        curl -s --max-time 15 https://api.ipify.org > /dev/null && echo "[INFO] 出口 IP 获取成功" || echo "[WARN] 出口 IP 获取失败"
         echo "[INFO] 目标域名解析测试:"
         curl -s --max-time 15 -o /dev/null -w "host2play HTTP:%{http_code}\n" https://host2play.gratis || echo "[WARN] 目标站点连接失败"
 
